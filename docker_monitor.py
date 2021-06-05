@@ -62,9 +62,9 @@ class DockerMonitor(Thread):
 		while self.shutdown == True:
 			self.set_image_list()
 			if self.new_come == True:
-				self.acquire()
+				self.lock.acquire()
 				self.cache_to_pmem()
-				self.release()
+				self.lock.release()
 			time.sleep(1)
 
 
