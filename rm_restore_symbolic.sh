@@ -15,4 +15,7 @@ do
 	mv $i $NVME_PATH/
 done
 
+# Remove quit containers in docker ps
+docker rm $(docker ps -a -q)
+
 cd /home/sheum/hello-bench/CHERRY

@@ -6,8 +6,8 @@ import operator
 import copy
 
 from threading import Thread, Lock
-from pm_monitor import PMemMonitor
-
+from CHERRY.pm_monitor import PMemMonitor
+#from pm_monitor import PMemMonitor
 
 def get_dir_size(path="."):
 	cmd = "du " + path + " | awk '{print $1}'"
@@ -74,13 +74,12 @@ class DockerMonitor(Thread):
 		self.init_lock.release()
 
 		while self.shutdown == True:
+			self.lock.acquire()
 			ret, new_comes = self.check_new_containers()
 			if ret == True:
-				print("Here comes new containers")
-				self.lock.acquire()
 				self.rearrange_priority(new_comes)
 				self.cache_image_to_pmem()
-				self.lock.release()
+			self.lock.release()
 			time.sleep(1)
 
 
@@ -88,6 +87,7 @@ class DockerMonitor(Thread):
 		self.shutdown = False
 		self.PMEM.shutdown = False
 		self.PMEM.join()
+		print("Docker monitoring off...")
 
 
 	def set_image_list(self):
@@ -125,14 +125,18 @@ class DockerMonitor(Thread):
 		symbolic = pm_path + "/docker_images/" + layer
 		mv_cmd = "mv " + cur_path + " " + pm_path + "/docker_images"
 		ln_cmd = "ln -s " + symbolic + " " + cur_path
+		self.PMEM.lock.acquire()
 		subprocess.run([mv_cmd + ";" + ln_cmd], shell=True)
+		self.PMEM.lock.release()
 	
 
 	def move_pmem_to_nvme(self, layer, pm_path):
 		original_path = self.get_layer_path(layer)
 		rm_cmd = "rm " + original_path
 		mv_cmd = "mv " + pm_path + "/docker_images/" + layer + " " + original_path
+		self.PMEM.lock.acquire()
 		subprocess.run([rm_cmd + ";" + mv_cmd], shell=True)
+		self.PMEM.lock.release()
 
 
 	def cache_image_to_pmem(self):
@@ -152,15 +156,13 @@ class DockerMonitor(Thread):
 					path = self.get_layer_path(layer_name)
 					self.cached_list[layer_name] = path
 					self.move_nvme_to_pmem(layer=layer_name, pm_path="/mnt/pm")
-					print("[Cached] ", layer_name, "size:", layer_size, "KB")
-					print("Sharing these images:", self.get_image_from_layer(layer_name))
+					#print("[Cached] ", layer_name, "size:", layer_size, "KB")
 				else:
 					self.evict_from_pmem(layer_name)
 					path = self.get_layer_path(layer_name)
 					self.cached_list[layer_name] = path
 					self.move_nvme_to_pmem(layer=layer_name, pm_path="/mnt/pm")
-					print("[Cached] ", layer_name, "size:", layer_size, "KB")
-					print("sharing these images:", self.get_image_from_layer(layer_name))
+					#print("[Cached] ", layer_name, "size:", layer_size, "KB")
 
 
 	def evict_from_pmem(self, target_layer):
@@ -175,8 +177,8 @@ class DockerMonitor(Thread):
 				continue
 			self.move_pmem_to_nvme(victim_name, self.PMEM.pm_path)
 			victim_size = self.get_layer_size(victim_name)
-			print("[Evicted] ", victim_name, "size:", victim_size, "KB")
-			print("sharing these images:", self.get_image_from_layer(victim_name))
+			#print("[Evicted] ", victim_name, "size:", victim_size, "KB")
+			#print("sharing these images:", self.get_image_from_layer(victim_name))
 			del self.cached_list[victim_name]
 			if self.PMEM.check_cache_available(target_layer_size):
 				return

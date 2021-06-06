@@ -1,4 +1,4 @@
-from threading import Thread
+from threading import Thread, Lock
 import time
 import subprocess
 
@@ -13,6 +13,7 @@ class PMemMonitor(Thread):
 		self.status = True
 		self.shutdown = True
 		self.verbose = verbose
+		self.lock = Lock()
 
 		self.total 		  = 0
 		self.usage		  = 0
@@ -26,6 +27,7 @@ class PMemMonitor(Thread):
 		docker_cmd = "du " + self.docker_path + " -d 1 | awk '{print $1}'"
 
 		while self.shutdown == True:
+			self.lock.acquire()
 			output = subprocess.check_output([pm_cmd], shell=True, encoding='utf-8').split(" ")
 			output = list(filter(lambda x: x != "", output))
 			self.total = int(output[1])
@@ -34,7 +36,8 @@ class PMemMonitor(Thread):
 
 			output = subprocess.check_output([docker_cmd], shell=True, encoding='utf-8').split("\n")
 			output = list(map(int, filter(lambda x: x != "", output)))
-			self.docker_usage = sum(output)
+			self.docker_usage = int(sum(output))
+			self.lock.release()
 
 			if self.verbose == True:
 				print("=======================================================")
@@ -51,8 +54,11 @@ class PMemMonitor(Thread):
 
 
 	def check_cache_available(self, layer_size):
+		self.lock.acquire()
 		if self.docker_usage + int(layer_size) <= self.limit:
+			self.lock.release()
 			return True
+		self.lock.release()
 		return False
 
 
