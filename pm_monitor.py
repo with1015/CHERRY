@@ -24,7 +24,7 @@ class PMemMonitor(Thread):
 	def run(self):
 		print("PMEM monitoring start.")
 		pm_cmd = "df | grep pmem0"
-		docker_cmd = "du " + self.docker_path + " -d 1 | awk '{print $1}'"
+		docker_cmd = "du " + self.docker_path + " -d 0 | awk '{print $1}'"
 
 		while self.shutdown == True:
 			self.lock.acquire()
@@ -36,7 +36,7 @@ class PMemMonitor(Thread):
 
 			output = subprocess.check_output([docker_cmd], shell=True, encoding='utf-8').split("\n")
 			output = list(map(int, filter(lambda x: x != "", output)))
-			self.docker_usage = int(sum(output))
+			self.docker_usage = int(output[0])
 			self.lock.release()
 
 			if self.verbose == True:

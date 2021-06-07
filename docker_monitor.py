@@ -45,7 +45,7 @@ class DockerImage():
 
 class DockerMonitor(Thread):
 
-	def __init__(self, name="None", docker_path="/mnt/nvme/docker_images", limit=1000000):
+	def __init__(self, name="None", docker_path="/mnt/nvme/docker_images", limit=8000000):
 		super().__init__()
 		self.init_lock = Lock()
 		self.init_lock.acquire()
@@ -166,22 +166,22 @@ class DockerMonitor(Thread):
 
 
 	def evict_from_pmem(self, target_layer):
-		dump_list = list(self.cached_list.keys())
-		victim_list = copy.deepcopy(dump_list)
+		victim_list = sorted(self.layer_cnt.items(), key=operator.itemgetter(1))
 		target_layer_size = self.get_layer_size(target_layer)
 		target_priority = self.layer_cnt[target_layer]
+		copied_keys = copy.deepcopy(list(self.cached_list.keys()))
 
-		for victim_name in victim_list:
-			victim_priority = self.layer_cnt[victim_name]
-			if victim_priority < target_priority:
-				continue
-			self.move_pmem_to_nvme(victim_name, self.PMEM.pm_path)
-			victim_size = self.get_layer_size(victim_name)
-			#print("[Evicted] ", victim_name, "size:", victim_size, "KB")
-			#print("sharing these images:", self.get_image_from_layer(victim_name))
-			del self.cached_list[victim_name]
-			if self.PMEM.check_cache_available(target_layer_size):
-				return
+		for victim_name, victim_priority in victim_list:
+			if victim_name in copied_keys:
+				if victim_priority > target_priority:
+					continue
+				self.move_pmem_to_nvme(victim_name, self.PMEM.pm_path)
+				victim_size = self.get_layer_size(victim_name)
+				#print("[Evicted] ", victim_name, "size:", victim_size, "KB")
+				#print("sharing these images:", self.get_image_from_layer(victim_name))
+				del self.cached_list[victim_name]
+				if self.PMEM.check_cache_available(target_layer_size):
+					return
 
 
 	def get_image_from_layer(self, layer_code):
