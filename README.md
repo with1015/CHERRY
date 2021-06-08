@@ -1,2 +1,4 @@
 # CHERRY
-CHERRY: dynamiC cacHe ManagEment foR fast-efficient staRt up in pmem based cloud sYstem, AOS2021
+CHERRY: DynamiC Cache Management for fast-efficient start up in pmem based FaaS system
+
+AOS 2021 Project
